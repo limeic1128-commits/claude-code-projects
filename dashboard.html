@@ -1,0 +1,486 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>リベシティ プロフィールダッシュボード</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Hiragino Kaku Gothic ProN', 'Noto Sans JP', sans-serif;
+      background: #f0f4f8;
+      color: #2d3748;
+      min-height: 100vh;
+    }
+
+    header {
+      background: linear-gradient(135deg, #1a365d 0%, #2b6cb0 100%);
+      color: white;
+      padding: 24px 32px;
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    }
+    header .logo { font-size: 28px; }
+    header h1 { font-size: 20px; font-weight: 700; }
+    header p { font-size: 13px; opacity: 0.8; margin-top: 2px; }
+
+    .container {
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 32px 24px;
+      display: grid;
+      gap: 24px;
+    }
+
+    /* Profile Card */
+    .profile-card {
+      background: white;
+      border-radius: 16px;
+      padding: 32px;
+      display: flex;
+      gap: 28px;
+      align-items: flex-start;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+    }
+    .avatar {
+      width: 100px;
+      height: 100px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, #667eea, #764ba2);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 40px;
+      flex-shrink: 0;
+      box-shadow: 0 4px 12px rgba(102,126,234,0.4);
+    }
+    .profile-info { flex: 1; }
+    .profile-info h2 { font-size: 22px; font-weight: 700; margin-bottom: 4px; }
+    .profile-info .handle { color: #718096; font-size: 14px; margin-bottom: 12px; }
+    .bio { font-size: 15px; line-height: 1.7; color: #4a5568; margin-bottom: 16px; }
+    .profile-meta { display: flex; gap: 20px; flex-wrap: wrap; }
+    .meta-item { display: flex; align-items: center; gap: 6px; font-size: 13px; color: #718096; }
+
+    /* Stats Grid */
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 16px;
+    }
+    .stat-card {
+      background: white;
+      border-radius: 12px;
+      padding: 24px;
+      text-align: center;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+      transition: transform 0.2s, box-shadow 0.2s;
+    }
+    .stat-card:hover { transform: translateY(-2px); box-shadow: 0 6px 16px rgba(0,0,0,0.12); }
+    .stat-icon { font-size: 28px; margin-bottom: 10px; }
+    .stat-value { font-size: 28px; font-weight: 800; color: #2b6cb0; }
+    .stat-label { font-size: 13px; color: #718096; margin-top: 4px; }
+
+    /* Charts Section */
+    .charts-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 24px;
+    }
+    @media (max-width: 700px) { .charts-grid { grid-template-columns: 1fr; } }
+
+    .card {
+      background: white;
+      border-radius: 16px;
+      padding: 24px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+    }
+    .card h3 {
+      font-size: 16px;
+      font-weight: 700;
+      margin-bottom: 20px;
+      padding-bottom: 12px;
+      border-bottom: 2px solid #ebf4ff;
+      color: #2d3748;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .chart-container { position: relative; height: 240px; }
+
+    /* Tweets Feed */
+    .tweets-card { grid-column: 1 / -1; }
+    .tweet-list { display: flex; flex-direction: column; gap: 12px; }
+    .tweet-item {
+      padding: 16px;
+      border-radius: 10px;
+      background: #f7fafc;
+      border-left: 4px solid #2b6cb0;
+      transition: background 0.2s;
+    }
+    .tweet-item:hover { background: #ebf4ff; }
+    .tweet-text { font-size: 14px; line-height: 1.7; color: #2d3748; margin-bottom: 10px; }
+    .tweet-meta { display: flex; gap: 16px; font-size: 12px; color: #a0aec0; flex-wrap: wrap; }
+    .tweet-meta span { display: flex; align-items: center; gap: 4px; }
+
+    /* Top Words */
+    .word-list { display: flex; flex-wrap: wrap; gap: 8px; padding-top: 4px; }
+    .word-tag {
+      padding: 6px 14px;
+      border-radius: 20px;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: default;
+    }
+    .word-tag.rank-1 { background: #ebf4ff; color: #2b6cb0; font-size: 15px; }
+    .word-tag.rank-2 { background: #e9f7ef; color: #276749; font-size: 14px; }
+    .word-tag.rank-3 { background: #fef3c7; color: #92400e; }
+    .word-tag.rank-other { background: #f3f4f6; color: #4b5563; font-size: 12px; }
+
+    /* Activity Heatmap */
+    .heatmap { display: flex; flex-direction: column; gap: 4px; margin-top: 8px; }
+    .heatmap-row { display: flex; gap: 4px; align-items: center; }
+    .heatmap-label { font-size: 11px; color: #a0aec0; width: 24px; }
+    .heatmap-cells { display: flex; gap: 3px; }
+    .heatmap-cell {
+      width: 14px; height: 14px; border-radius: 3px;
+      background: #e2e8f0;
+      transition: transform 0.1s;
+      cursor: default;
+    }
+    .heatmap-cell:hover { transform: scale(1.4); }
+    .heatmap-cell.lv1 { background: #bee3f8; }
+    .heatmap-cell.lv2 { background: #63b3ed; }
+    .heatmap-cell.lv3 { background: #3182ce; }
+    .heatmap-cell.lv4 { background: #1a365d; }
+
+    .badge {
+      display: inline-flex; align-items: center; gap: 4px;
+      background: #ebf4ff; color: #2b6cb0;
+      border-radius: 20px; padding: 3px 10px; font-size: 12px; font-weight: 600;
+    }
+
+    footer {
+      text-align: center;
+      padding: 24px;
+      font-size: 12px;
+      color: #a0aec0;
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <div class="logo">🏙️</div>
+  <div>
+    <h1>リベシティ プロフィールダッシュボード</h1>
+    <p>プロフィール＆つぶやき分析レポート</p>
+  </div>
+</header>
+
+<div class="container">
+
+  <!-- Profile Card -->
+  <div class="profile-card">
+    <div class="avatar">🦁</div>
+    <div class="profile-info">
+      <h2>リベシティ太郎 <span class="badge">✨ アクティブ</span></h2>
+      <div class="handle">@libecity_taro · ID: ZCXk8Tpz4oThwcEvdiwFi0hOAk22</div>
+      <p class="bio">
+        🌱 30代会社員｜FIREを目指して資産運用中💰<br>
+        インデックス投資・副業・節約を実践中！<br>
+        リベ大で学んだことを毎日アウトプット 📚
+      </p>
+      <div class="profile-meta">
+        <div class="meta-item">📅 2022年4月 参加</div>
+        <div class="meta-item">🏆 コミュニティ貢献度 <strong>高</strong></div>
+        <div class="meta-item">🔗 libecity.com/user_profile/ZCXk8...</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Stats -->
+  <div class="stats-grid">
+    <div class="stat-card">
+      <div class="stat-icon">📝</div>
+      <div class="stat-value">248</div>
+      <div class="stat-label">つぶやき総数</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-icon">👥</div>
+      <div class="stat-value">312</div>
+      <div class="stat-label">フォロワー</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-icon">➡️</div>
+      <div class="stat-value">180</div>
+      <div class="stat-label">フォロー中</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-icon">❤️</div>
+      <div class="stat-value">1,540</div>
+      <div class="stat-label">いいね獲得数</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-icon">💬</div>
+      <div class="stat-value">86</div>
+      <div class="stat-label">コメント獲得数</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-icon">📈</div>
+      <div class="stat-value">6.2</div>
+      <div class="stat-label">平均いいね/投稿</div>
+    </div>
+  </div>
+
+  <!-- Charts -->
+  <div class="charts-grid">
+
+    <!-- Monthly Posts Chart -->
+    <div class="card">
+      <h3>📊 月別投稿数</h3>
+      <div class="chart-container">
+        <canvas id="monthlyChart"></canvas>
+      </div>
+    </div>
+
+    <!-- Category Pie -->
+    <div class="card">
+      <h3>🗂️ 投稿カテゴリ分布</h3>
+      <div class="chart-container">
+        <canvas id="categoryChart"></canvas>
+      </div>
+    </div>
+
+    <!-- Engagement Chart -->
+    <div class="card">
+      <h3>💖 エンゲージメント推移</h3>
+      <div class="chart-container">
+        <canvas id="engagementChart"></canvas>
+      </div>
+    </div>
+
+    <!-- Word Cloud / Top Words -->
+    <div class="card">
+      <h3>🔤 よく使うキーワード TOP10</h3>
+      <div class="word-list">
+        <span class="word-tag rank-1">資産運用 (42)</span>
+        <span class="word-tag rank-1">投資 (38)</span>
+        <span class="word-tag rank-2">節約 (31)</span>
+        <span class="word-tag rank-2">副業 (28)</span>
+        <span class="word-tag rank-3">FIRE (22)</span>
+        <span class="word-tag rank-3">インデックス (19)</span>
+        <span class="word-tag rank-other">積立NISA (15)</span>
+        <span class="word-tag rank-other">家計管理 (14)</span>
+        <span class="word-tag rank-other">リベ大 (13)</span>
+        <span class="word-tag rank-other">両学長 (11)</span>
+      </div>
+      <div style="margin-top: 20px;">
+        <h3 style="border-top: none; padding-top: 0; margin-bottom: 12px;">⏰ 投稿時間帯</h3>
+        <div class="chart-container" style="height: 120px;">
+          <canvas id="hourChart"></canvas>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Activity Heatmap -->
+  <div class="card">
+    <h3>🗓️ 投稿アクティビティ（過去4週間）</h3>
+    <div class="heatmap" id="heatmap"></div>
+    <div style="margin-top: 12px; display: flex; align-items: center; gap: 6px; font-size: 12px; color: #718096;">
+      少ない
+      <div style="width:12px;height:12px;border-radius:2px;background:#e2e8f0;"></div>
+      <div style="width:12px;height:12px;border-radius:2px;background:#bee3f8;"></div>
+      <div style="width:12px;height:12px;border-radius:2px;background:#63b3ed;"></div>
+      <div style="width:12px;height:12px;border-radius:2px;background:#3182ce;"></div>
+      <div style="width:12px;height:12px;border-radius:2px;background:#1a365d;"></div>
+      多い
+    </div>
+  </div>
+
+  <!-- Recent Tweets -->
+  <div class="card tweets-card">
+    <h3>💬 最近のつぶやき</h3>
+    <div class="tweet-list">
+      <div class="tweet-item">
+        <div class="tweet-text">
+          今月の投資成績を振り返り📊 インデックス投資は含み益+8.3%！
+          コツコツ積立の力を実感しています。焦らず長期投資を続けることが大切ですね 💪
+          #投資 #インデックス投資 #資産運用
+        </div>
+        <div class="tweet-meta">
+          <span>📅 2026/05/22</span>
+          <span>❤️ 24</span>
+          <span>💬 7</span>
+          <span>🏷️ 投資・資産運用</span>
+        </div>
+      </div>
+      <div class="tweet-item">
+        <div class="tweet-text">
+          副業の収入が今月初めて5万円を超えました🎉
+          リベ大で学んだスキルを活かしてWebライティングを始めて半年。
+          継続は力なり！ #副業 #FIRE #リベ大
+        </div>
+        <div class="tweet-meta">
+          <span>📅 2026/05/19</span>
+          <span>❤️ 41</span>
+          <span>💬 12</span>
+          <span>🏷️ 副業・稼ぐ</span>
+        </div>
+      </div>
+      <div class="tweet-item">
+        <div class="tweet-text">
+          家計の見直しをしたら毎月3万円の節約に成功！
+          固定費の削減が一番効果的でした。
+          保険・通信費・サブスクを全部見直し🔍 #節約 #家計管理
+        </div>
+        <div class="tweet-meta">
+          <span>📅 2026/05/15</span>
+          <span>❤️ 18</span>
+          <span>💬 5</span>
+          <span>🏷️ 節約・家計</span>
+        </div>
+      </div>
+      <div class="tweet-item">
+        <div class="tweet-text">
+          NISAの年間上限360万円を目指して今年こそ満額投資！
+          成長投資枠でETFを購入しました📈
+          皆さんはどんな銘柄を選んでいますか？ #NISA #積立投資
+        </div>
+        <div class="tweet-meta">
+          <span>📅 2026/05/10</span>
+          <span>❤️ 29</span>
+          <span>💬 9</span>
+          <span>🏷️ 投資・資産運用</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<footer>
+  ※ このダッシュボードはサンプルデータで作成されています。実際のデータに差し替えてご利用ください。<br>
+  Generated by Claude Code · 2026-05-23
+</footer>
+
+<script>
+  const blue = '#2b6cb0';
+  const lightBlue = '#bee3f8';
+  const defaults = {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: { legend: { labels: { font: { family: 'Hiragino Kaku Gothic ProN, sans-serif', size: 12 } } } }
+  };
+
+  // Monthly Posts
+  new Chart(document.getElementById('monthlyChart'), {
+    type: 'bar',
+    data: {
+      labels: ['12月', '1月', '2月', '3月', '4月', '5月'],
+      datasets: [{
+        label: '投稿数',
+        data: [18, 25, 20, 32, 28, 22],
+        backgroundColor: 'rgba(43,108,176,0.7)',
+        borderColor: blue,
+        borderWidth: 2,
+        borderRadius: 6
+      }]
+    },
+    options: { ...defaults, scales: { y: { beginAtZero: true, ticks: { stepSize: 5 } } }, plugins: { ...defaults.plugins, legend: { display: false } } }
+  });
+
+  // Category Pie
+  new Chart(document.getElementById('categoryChart'), {
+    type: 'doughnut',
+    data: {
+      labels: ['投資・資産運用', '副業・稼ぐ', '節約・家計', 'FIRE・人生設計', 'その他'],
+      datasets: [{
+        data: [42, 23, 18, 11, 6],
+        backgroundColor: ['#2b6cb0', '#38a169', '#d69e2e', '#805ad5', '#a0aec0'],
+        borderWidth: 2,
+        borderColor: '#fff'
+      }]
+    },
+    options: { ...defaults, cutout: '60%' }
+  });
+
+  // Engagement Line
+  new Chart(document.getElementById('engagementChart'), {
+    type: 'line',
+    data: {
+      labels: ['12月', '1月', '2月', '3月', '4月', '5月'],
+      datasets: [
+        {
+          label: 'いいね',
+          data: [180, 220, 195, 280, 260, 200],
+          borderColor: '#e53e3e',
+          backgroundColor: 'rgba(229,62,62,0.1)',
+          tension: 0.4,
+          fill: true,
+          pointRadius: 4
+        },
+        {
+          label: 'コメント',
+          data: [8, 14, 11, 18, 16, 12],
+          borderColor: blue,
+          backgroundColor: 'rgba(43,108,176,0.1)',
+          tension: 0.4,
+          fill: true,
+          pointRadius: 4
+        }
+      ]
+    },
+    options: { ...defaults, scales: { y: { beginAtZero: true } } }
+  });
+
+  // Hour Chart
+  new Chart(document.getElementById('hourChart'), {
+    type: 'bar',
+    data: {
+      labels: ['6', '7', '8', '9', '10', '11', '12', '13', '14', '15', '16', '17', '18', '19', '20', '21', '22', '23'],
+      datasets: [{
+        label: '投稿数',
+        data: [2, 5, 8, 6, 3, 2, 8, 4, 3, 2, 3, 4, 7, 9, 12, 18, 15, 8],
+        backgroundColor: 'rgba(43,108,176,0.6)',
+        borderRadius: 3
+      }]
+    },
+    options: {
+      ...defaults,
+      scales: { y: { display: false }, x: { ticks: { font: { size: 10 } } } },
+      plugins: { ...defaults.plugins, legend: { display: false } }
+    }
+  });
+
+  // Heatmap
+  const days = ['日', '月', '火', '水', '木', '金', '土'];
+  const heatmap = document.getElementById('heatmap');
+  days.forEach((day, i) => {
+    const row = document.createElement('div');
+    row.className = 'heatmap-row';
+    const label = document.createElement('div');
+    label.className = 'heatmap-label';
+    label.textContent = day;
+    row.appendChild(label);
+    const cells = document.createElement('div');
+    cells.className = 'heatmap-cells';
+    for (let w = 0; w < 28; w++) {
+      const cell = document.createElement('div');
+      const r = Math.random();
+      const lv = r > 0.85 ? 'lv4' : r > 0.65 ? 'lv3' : r > 0.4 ? 'lv2' : r > 0.2 ? 'lv1' : '';
+      cell.className = 'heatmap-cell' + (lv ? ' ' + lv : '');
+      cells.appendChild(cell);
+    }
+    row.appendChild(cells);
+    heatmap.appendChild(row);
+  });
+</script>
+
+</body>
+</html>
